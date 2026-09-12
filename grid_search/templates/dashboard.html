@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hiperparametre Grid Search Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="top-header">
+            <div class="header-left">
+                <div class="logo-badge">GS</div>
+                <div>
+                    <h1 class="title">Model Hiperparametre Grid Search</h1>
+                    <p class="subtitle">7 Varlık &times; 6 Model &times; 3 Ufuk &bull; Paralel Optimizasyon Sistemi</p>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <button id="btn-start-all" class="btn btn-primary" onclick="startAllAssets()">
+                    <span class="btn-icon">&#9658;</span> Tümünü Sırayla Başlat
+                </button>
+                <button id="btn-stop" class="btn btn-danger" onclick="stopGridSearch()" disabled>
+                    <span class="btn-icon">&#9632;</span> Durdur
+                </button>
+            </div>
+        </header>
+
+        <!-- GLOBAL STATS & OVERALL PROGRESS -->
+        <section class="global-status-card">
+            <div class="progress-info-row">
+                <div class="stat-pill">
+                    <span class="stat-label">GENEL İLERLEME</span>
+                    <span id="overall-percentage" class="stat-value highlight">0.0%</span>
+                </div>
+                <div class="stat-pill">
+                    <span class="stat-label">DENEY SAYISI</span>
+                    <span id="overall-counts" class="stat-value">0 / 7,182</span>
+                </div>
+                <div class="stat-pill">
+                    <span class="stat-label">BAŞLANGIÇ</span>
+                    <span id="start-time-display" class="stat-value">--:--:--</span>
+                </div>
+                <div class="stat-pill">
+                    <span class="stat-label">GEÇEN SÜRE</span>
+                    <span id="elapsed-time-display" class="stat-value">00:00:00</span>
+                </div>
+            </div>
+
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar-fill" id="overall-progress-bar" style="width: 0%;"></div>
+            </div>
+        </section>
+
+        <!-- LIVE SYSTEM HARDWARE TELEMETRY -->
+        <section class="hardware-telemetry-card">
+            <div class="hw-meter-item">
+                <div class="hw-meter-header">
+                    <div class="hw-meter-title">
+                        <span class="hw-icon cpu-icon">&#9881;</span>
+                        <span>İŞLEMCİ (CPU)</span>
+                    </div>
+                    <span class="hw-meter-val" id="cpu-val-display">0.0%</span>
+                </div>
+                <div class="hw-bar-bg">
+                    <div class="hw-bar-fill cpu-fill" id="cpu-bar-fill" style="width: 0%;"></div>
+                </div>
+                <div class="hw-subtext">AMD Ryzen 5 5600 &bull; 6C / 12T</div>
+            </div>
+
+            <div class="hw-meter-item">
+                <div class="hw-meter-header">
+                    <div class="hw-meter-title">
+                        <span class="hw-icon ram-icon">&#9635;</span>
+                        <span>BELLEK (RAM)</span>
+                    </div>
+                    <span class="hw-meter-val" id="ram-val-display">0.0%</span>
+                </div>
+                <div class="hw-bar-bg">
+                    <div class="hw-bar-fill ram-fill" id="ram-bar-fill" style="width: 0%;"></div>
+                </div>
+                <div class="hw-subtext" id="ram-subtext-display">0.0 GB / 16.0 GB</div>
+            </div>
+
+            <div class="hw-meter-item">
+                <div class="hw-meter-header">
+                    <div class="hw-meter-title">
+                        <span class="hw-icon gpu-icon">&#9889;</span>
+                        <span>EKRAN KARTI (GPU VRAM)</span>
+                    </div>
+                    <span class="hw-meter-val" id="gpu-val-display">0.0%</span>
+                </div>
+                <div class="hw-bar-bg">
+                    <div class="hw-bar-fill gpu-fill" id="gpu-bar-fill" style="width: 0%;"></div>
+                </div>
+                <div class="hw-subtext" id="gpu-subtext-display">NVIDIA RTX 3070 &bull; 0.0 GB / 8.0 GB</div>
+            </div>
+        </section>
+
+        <!-- ASSET TABS -->
+        <nav class="asset-tabs" id="asset-tabs-nav">
+            <!-- Tabs dynamically injected or static -->
+            <button class="tab-btn active" data-asset="USD/TRY" onclick="switchAssetTab('USD/TRY')">
+                <span class="tab-status-dot" id="dot-USD/TRY"></span>
+                <span class="tab-title">USD/TRY</span>
+                <span class="tab-progress-mini" id="mini-progress-USD/TRY">0%</span>
+            </button>
+            <button class="tab-btn" data-asset="EUR/TRY" onclick="switchAssetTab('EUR/TRY')">
+                <span class="tab-status-dot" id="dot-EUR/TRY"></span>
+                <span class="tab-title">EUR/TRY</span>
+                <span class="tab-progress-mini" id="mini-progress-EUR/TRY">0%</span>
+            </button>
+            <button class="tab-btn" data-asset="Altin (Ons)" onclick="switchAssetTab('Altin (Ons)')">
+                <span class="tab-status-dot" id="dot-Altin (Ons)"></span>
+                <span class="tab-title">Altın (Ons)</span>
+                <span class="tab-progress-mini" id="mini-progress-Altin (Ons)">0%</span>
+            </button>
+            <button class="tab-btn" data-asset="Bitcoin (USD)" onclick="switchAssetTab('Bitcoin (USD)')">
+                <span class="tab-status-dot" id="dot-Bitcoin (USD)"></span>
+                <span class="tab-title">Bitcoin (USD)</span>
+                <span class="tab-progress-mini" id="mini-progress-Bitcoin (USD)">0%</span>
+            </button>
+            <button class="tab-btn" data-asset="Apple (USD)" onclick="switchAssetTab('Apple (USD)')">
+                <span class="tab-status-dot" id="dot-Apple (USD)"></span>
+                <span class="tab-title">Apple (USD)</span>
+                <span class="tab-progress-mini" id="mini-progress-Apple (USD)">0%</span>
+            </button>
+            <button class="tab-btn" data-asset="Tesla (USD)" onclick="switchAssetTab('Tesla (USD)')">
+                <span class="tab-status-dot" id="dot-Tesla (USD)"></span>
+                <span class="tab-title">Tesla (USD)</span>
+                <span class="tab-progress-mini" id="mini-progress-Tesla (USD)">0%</span>
+            </button>
+            <button class="tab-btn" data-asset="THY (TL)" onclick="switchAssetTab('THY (TL)')">
+                <span class="tab-status-dot" id="dot-THY (TL)"></span>
+                <span class="tab-title">THY (TL)</span>
+                <span class="tab-progress-mini" id="mini-progress-THY (TL)">0%</span>
+            </button>
+        </nav>
+
+        <!-- SUB-NAV TABS (CANLI IZLEME vs PARAMETRE TABLOSU) -->
+        <div class="view-mode-tabs">
+            <button class="view-tab-btn active" id="btn-view-live" onclick="switchViewMode('live')">
+                <span class="btn-icon">&#9889;</span> Canlı Test Akışı & Modeller
+            </button>
+            <button class="view-tab-btn" id="btn-view-params" onclick="switchViewMode('params')">
+                <span class="btn-icon">&#9776;</span> Tüm Denenen Parametreler & Metrikler (<span id="view-params-asset-name">USD/TRY</span>)
+            </button>
+        </div>
+
+        <!-- VIEW 1: MAIN LIVE DASHBOARD GRID -->
+        <main class="main-content-grid" id="section-live-view">
+            <!-- LEFT COLUMN: LIVE LOG & MODEL BREAKDOWN -->
+            <div class="left-panel">
+                <!-- MODEL STATUS LIST -->
+                <div class="card model-breakdown-card">
+                    <div class="card-header">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h2 class="card-title">Model Durumları &bull; <span id="current-asset-title">USD/TRY</span></h2>
+                            <span class="badge" id="asset-overall-status">Bekliyor</span>
+                        </div>
+                        <button id="btn-start-single" class="btn btn-sm btn-accent-outline" onclick="startSingleAsset()">
+                            <span class="btn-icon">&#9658;</span> Sadece <span id="btn-single-name">USD/TRY</span>'yi Test Et
+                        </button>
+                    </div>
+                    <div class="model-progress-grid" id="models-progress-container">
+                        <!-- Model items dynamically rendered -->
+                    </div>
+                </div>
+
+                <!-- LIVE LOG STREAM -->
+                <div class="card log-card">
+                    <div class="card-header">
+                        <div class="log-header-left">
+                            <h2 class="card-title">Canlı Test Akışı</h2>
+                            <span class="pulse-indicator"></span>
+                        </div>
+                        <div class="log-controls">
+                            <label class="autoscroll-toggle">
+                                <input type="checkbox" id="autoscroll-chk" checked>
+                                <span>Oto Kaydır</span>
+                            </label>
+                            <button class="btn btn-sm btn-outline" onclick="clearCurrentLog()">Temizle</button>
+                        </div>
+                    </div>
+                    <div class="log-stream-terminal" id="log-terminal">
+                        <div class="log-entry system-msg">
+                            <span class="log-time">[00:00:00]</span> Sistem hazır. Testi başlatmak için sağ üstteki butona tıklayın.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: BEST RESULTS PER HORIZON & SUMMARY -->
+            <div class="right-panel">
+                <!-- BEST METRICS PER HORIZON -->
+                <div class="card best-metrics-card">
+                    <div class="card-header">
+                        <h2 class="card-title">En İyi Modeller &bull; <span id="best-asset-title">USD/TRY</span></h2>
+                        <span class="badge badge-accent">En Yüksek R²</span>
+                    </div>
+
+                    <!-- 3 MONTHS -->
+                    <div class="horizon-best-box" id="best-box-3m">
+                        <div class="horizon-badge">3 AY TAHMİN</div>
+                        <div class="horizon-main-score">
+                            <div class="score-r2">
+                                <span class="score-label">R² Skoru</span>
+                                <span class="score-num" id="best-r2-3m">--</span>
+                            </div>
+                            <div class="score-model">
+                                <span class="score-label">Kazanan Model</span>
+                                <span class="model-name-highlight" id="best-model-3m">Henüz test edilmedi</span>
+                            </div>
+                        </div>
+                        <div class="horizon-secondary-metrics">
+                            <div class="metric-item"><span>MAE:</span> <b id="best-mae-3m">--</b></div>
+                            <div class="metric-item"><span>RMSE:</span> <b id="best-rmse-3m">--</b></div>
+                            <div class="metric-item"><span>MAPE:</span> <b id="best-mape-3m">--</b></div>
+                        </div>
+                        <div class="params-box">
+                            <span class="params-label">En İyi Parametreler:</span>
+                            <code class="params-code" id="best-params-3m">--</code>
+                        </div>
+                    </div>
+
+                    <!-- 6 MONTHS -->
+                    <div class="horizon-best-box" id="best-box-6m">
+                        <div class="horizon-badge">6 AY TAHMİN</div>
+                        <div class="horizon-main-score">
+                            <div class="score-r2">
+                                <span class="score-label">R² Skoru</span>
+                                <span class="score-num" id="best-r2-6m">--</span>
+                            </div>
+                            <div class="score-model">
+                                <span class="score-label">Kazanan Model</span>
+                                <span class="model-name-highlight" id="best-model-6m">Henüz test edilmedi</span>
+                            </div>
+                        </div>
+                        <div class="horizon-secondary-metrics">
+                            <div class="metric-item"><span>MAE:</span> <b id="best-mae-6m">--</b></div>
+                            <div class="metric-item"><span>RMSE:</span> <b id="best-rmse-6m">--</b></div>
+                            <div class="metric-item"><span>MAPE:</span> <b id="best-mape-6m">--</b></div>
+                        </div>
+                        <div class="params-box">
+                            <span class="params-label">En İyi Parametreler:</span>
+                            <code class="params-code" id="best-params-6m">--</code>
+                        </div>
+                    </div>
+
+                    <!-- 12 MONTHS -->
+                    <div class="horizon-best-box" id="best-box-12m">
+                        <div class="horizon-badge">12 AY TAHMİN</div>
+                        <div class="horizon-main-score">
+                            <div class="score-r2">
+                                <span class="score-label">R² Skoru</span>
+                                <span class="score-num" id="best-r2-12m">--</span>
+                            </div>
+                            <div class="score-model">
+                                <span class="score-label">Kazanan Model</span>
+                                <span class="model-name-highlight" id="best-model-12m">Henüz test edilmedi</span>
+                            </div>
+                        </div>
+                        <div class="horizon-secondary-metrics">
+                            <div class="metric-item"><span>MAE:</span> <b id="best-mae-12m">--</b></div>
+                            <div class="metric-item"><span>RMSE:</span> <b id="best-rmse-12m">--</b></div>
+                            <div class="metric-item"><span>MAPE:</span> <b id="best-mape-12m">--</b></div>
+                        </div>
+                        <div class="params-box">
+                            <span class="params-label">En İyi Parametreler:</span>
+                            <code class="params-code" id="best-params-12m">--</code>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TOP SCORES TABLE CARD -->
+                <div class="card recent-table-card">
+                    <div class="card-header">
+                        <h2 class="card-title">Son Başarılı Denemeler</h2>
+                        <span class="table-subtitle">Tüm Varlıklar</span>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table" id="recent-results-table">
+                            <thead>
+                                <tr>
+                                    <th>Varlık</th>
+                                    <th>Model</th>
+                                    <th>Ufuk</th>
+                                    <th>R²</th>
+                                    <th>MAE</th>
+                                    <th>Süre</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-table-body">
+                                <tr class="empty-row"><td colspan="6">Kayıt bekleniyor...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- VIEW 2: PARAMETER EXPLORATION TABLE (NEW FEATURE) -->
+        <section class="card params-exploration-section" id="section-params-view" style="display: none;">
+            <div class="card-header">
+                <div>
+                    <h2 class="card-title">Denenen Tüm Parametreler & Metrikler &bull; <span id="table-asset-header-title">USD/TRY</span></h2>
+                    <p class="subtitle">Bu varlık için tamamlanmış tüm hiperparametre denemeleri ve başarım skorları</p>
+                </div>
+                <span class="badge badge-accent" id="table-records-counter">0 Kayıt</span>
+            </div>
+
+            <!-- FILTERS TOOLBAR -->
+            <div class="table-filter-toolbar">
+                <div class="filter-group">
+                    <label class="filter-label">Model Seç:</label>
+                    <select id="table-filter-model" class="filter-select" onchange="filterAssetTrialsTable()">
+                        <option value="ALL">Tüm Modeller</option>
+                        <option value="Prophet">Prophet</option>
+                        <option value="XGBoost">XGBoost</option>
+                        <option value="GARCH">GARCH</option>
+                        <option value="EGARCH">EGARCH</option>
+                        <option value="NBEATS">NBEATS</option>
+                        <option value="NHITS">NHITS</option>
+                        <option value="PatchTST">PatchTST</option>
+                        <option value="LSTM">LSTM</option>
+                        <option value="TFT">TFT</option>
+                        <option value="TiDE">TiDE</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Ufuk Seç:</label>
+                    <select id="table-filter-horizon" class="filter-select" onchange="filterAssetTrialsTable()">
+                        <option value="ALL">Tüm Ufuklar</option>
+                        <option value="3 Ay">3 Ay (90 Gün)</option>
+                        <option value="6 Ay (180 Gün)">6 Ay (180 Gün)</option>
+                        <option value="12 Ay (360 Gün)">12 Ay (360 Gün)</option>
+                    </select>
+                </div>
+
+                <div class="filter-group filter-search-group">
+                    <label class="filter-label">Parametre İçi Arama:</label>
+                    <input type="text" id="table-search-param" class="filter-input" placeholder="Örn: log=True, depth=5, lr=0.001..." oninput="filterAssetTrialsTable()">
+                </div>
+            </div>
+
+            <!-- DETAILED TRIALS TABLE -->
+            <div class="table-wrapper full-height-table">
+                <table class="data-table params-detail-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable-th" onclick="sortTableByColumn('model')">Model <span class="sort-icon" id="sort-icon-model"></span></th>
+                            <th class="sortable-th" onclick="sortTableByColumn('horizon')">Ufuk <span class="sort-icon" id="sort-icon-horizon"></span></th>
+                            <th class="sortable-th" onclick="sortTableByColumn('r2')">R² Skoru <span class="sort-icon" id="sort-icon-r2">&#9660;</span></th>
+                            <th class="sortable-th" onclick="sortTableByColumn('mae')">MAE <span class="sort-icon" id="sort-icon-mae"></span></th>
+                            <th class="sortable-th" onclick="sortTableByColumn('rmse')">RMSE <span class="sort-icon" id="sort-icon-rmse"></span></th>
+                            <th class="sortable-th" onclick="sortTableByColumn('mape')">MAPE <span class="sort-icon" id="sort-icon-mape"></span></th>
+                            <th class="sortable-th" onclick="sortTableByColumn('elapsed')">Süre <span class="sort-icon" id="sort-icon-elapsed"></span></th>
+                            <th class="sortable-th" onclick="sortTableByColumn('params')">Denenen Hiperparametreler <span class="sort-icon" id="sort-icon-params"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="asset-all-trials-tbody">
+                        <tr class="empty-row"><td colspan="8">Bu varlık için kayıt bekleniyor veya yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- CUSTOM MODERN MODAL SYSTEM -->
+    <div id="custom-modal-overlay" class="modal-overlay" onclick="handleModalBackdropClick(event)">
+        <div class="custom-modal-card" id="custom-modal-card">
+            <div class="modal-header">
+                <div class="modal-header-info">
+                    <div class="modal-icon-badge" id="modal-icon-badge">&#10003;</div>
+                    <div>
+                        <h3 class="modal-title" id="modal-title">Bildirim</h3>
+                        <p class="modal-subtitle" id="modal-subtitle">İşlem Detayları</p>
+                    </div>
+                </div>
+                <button class="modal-close-btn" onclick="closeCustomModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Dynamic Content -->
+            </div>
+            <div class="modal-footer" id="modal-footer">
+                <button class="btn btn-primary modal-action-btn" id="modal-primary-btn" onclick="closeCustomModal()">Tamam</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODEL DETAIL & LIVE PROGRESS MODAL -->
+    <div id="model-detail-modal-overlay" class="modal-overlay" onclick="handleModelModalBackdropClick(event)">
+        <div class="model-detail-card" id="model-detail-card">
+            <!-- MODAL HEADER -->
+            <div class="model-detail-header">
+                <div class="model-detail-title-group">
+                    <div class="model-badge-icon" id="md-model-icon">&#9881;</div>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <h3 class="model-detail-title" id="md-title">Model Canlı Takip</h3>
+                            <span class="badge" id="md-asset-badge">USD/TRY</span>
+                            <span class="badge badge-accent" id="md-device-badge">GPU (CUDA)</span>
+                        </div>
+                        <p class="model-detail-subtitle" id="md-subtitle">Gerçek zamanlı batch/eğitim aşamaları ve model deneme logları</p>
+                    </div>
+                </div>
+                <div class="model-detail-header-actions">
+                    <span class="badge" id="md-status-badge">Bekliyor</span>
+                    <button class="modal-close-btn" onclick="closeModelDetailModal()">&times;</button>
+                </div>
+            </div>
+
+            <!-- LIVE STATUS & PROGRESS BANNER -->
+            <div class="model-live-status-card">
+                <div class="model-live-stats-row">
+                    <!-- General Progress -->
+                    <div class="stat-box">
+                        <span class="stat-box-label">Toplam İlerleme</span>
+                        <div class="stat-box-value">
+                            <span id="md-done-count">0</span> / <span id="md-total-count">72</span>
+                            <span class="stat-box-pct" id="md-pct-badge">%0</span>
+                        </div>
+                        <div class="mini-bar-wrap">
+                            <div class="mini-bar-fill" id="md-overall-bar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Current Active Stage -->
+                    <div class="stat-box flex-2">
+                        <span class="stat-box-label">Anlık Aşama / Durum</span>
+                        <div class="stat-stage-text" id="md-stage-text">Bekliyor...</div>
+                        <div class="live-step-bar-wrap" id="md-step-wrap">
+                            <div class="live-step-bar-fill" id="md-step-bar" style="width: 0%;"></div>
+                        </div>
+                        <div class="stat-step-meta" id="md-step-meta">
+                            <span>Adım / Batch: <b id="md-step-val">0 / 0</b></span>
+                            <span>Kayıp (Loss): <b id="md-loss-val">--</b></span>
+                            <span>Süre: <b id="md-elapsed-val">0.0s</b></span>
+                        </div>
+                    </div>
+
+                    <!-- Active Parameters -->
+                    <div class="stat-box flex-2">
+                        <span class="stat-box-label">Aktif Ufuk & Parametreler</span>
+                        <div class="stat-horizon-badge" id="md-horizon-val">--</div>
+                        <code class="stat-params-code" id="md-params-val">--</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABS FOR LOGS vs HISTORY -->
+            <div class="model-detail-tabs">
+                <button class="model-detail-tab-btn active" id="md-tab-logs-btn" onclick="switchModelModalTab('logs')">
+                    <span class="btn-icon">&#9889;</span> Canlı Model Terminali & Logları
+                </button>
+                <button class="model-detail-tab-btn" id="md-tab-trials-btn" onclick="switchModelModalTab('trials')">
+                    <span class="btn-icon">&#9776;</span> Tamamlanan Denemeler (<span id="md-trials-count">0</span>)
+                </button>
+            </div>
+
+            <!-- TAB 1: TERMINAL & LOG STREAM -->
+            <div class="model-tab-content active" id="md-tab-logs">
+                <div class="model-terminal-wrapper">
+                    <div class="model-terminal-header">
+                        <div class="terminal-dots">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </div>
+                        <span class="terminal-title">Model Stdout & Training Stream</span>
+                        <div class="terminal-actions">
+                            <label class="autoscroll-toggle">
+                                <input type="checkbox" id="md-autoscroll-chk" checked>
+                                <span>Oto Kaydır</span>
+                            </label>
+                            <button class="btn btn-sm btn-outline" onclick="clearModelModalLogs()">Temizle</button>
+                        </div>
+                    </div>
+                    <div class="model-terminal-body" id="md-terminal-body">
+                        <div class="log-entry system-msg">
+                            <span class="log-time">[00:00:00]</span> Model log akışı dinleniyor...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: COMPLETED TRIALS TABLE -->
+            <div class="model-tab-content" id="md-tab-trials" style="display: none;">
+                <div class="table-wrapper model-trials-table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Ufuk</th>
+                                <th>R² Skoru</th>
+                                <th>MAE</th>
+                                <th>RMSE</th>
+                                <th>MAPE</th>
+                                <th>Süre</th>
+                                <th>Parametreler</th>
+                            </tr>
+                        </thead>
+                        <tbody id="md-trials-tbody">
+                            <tr class="empty-row"><td colspan="8">Henüz tamamlanan deneme kaydı yok...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MODAL FOOTER -->
+            <div class="model-detail-footer">
+                <span class="footer-hint">İpucu: Model arka planda çalışırken bu pencereyi kapatabilir, diğer modelleri izleyebilirsiniz.</span>
+                <button class="btn btn-primary modal-action-btn" onclick="closeModelDetailModal()">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

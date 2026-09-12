@@ -1,0 +1,39 @@
+﻿# Grid Search Sonuçları (üretilen veriler)
+grid_search_tum_denemeler.csv
+grid_search_tum_denemeler_backup.csv
+grid_search_tum_sonuclar.csv
+grid_search_en_iyi_modeller.csv
+usd_try_grid_search_sonuclari.csv
+*_grid_search_sonuclari.csv
+
+# Referans veri CSV'leri (datas/)
+datas/
+
+# Neural model checkpoint logları
+lightning_logs/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Sanal ortamlar
+.venv/
+venv/
+env/
+
+# VS Code
+.vscode/
+
+# OS dosyaları
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Streamlit cache
+.streamlit/
+
+# Geçici dosyalar
+*.tmp
+*.log

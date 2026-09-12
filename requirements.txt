@@ -1,0 +1,11 @@
+streamlit
+yfinance
+plotly
+pandas
+neuralforecast
+xgboost
+torch
+openpyxl
+prophet
+scikit-learn
+regex
